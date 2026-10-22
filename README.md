@@ -1,233 +1,104 @@
 # DPO Assistant | مساعد مسؤول حماية البيانات
 
-[![SDAIA Academy](https://img.shields.io/badge/SDAIA%20Academy-Training%20Project-006C35?style=for-the-badge&logo=github&logoColor=white)](https://github.com/SDAIAAcademy)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![OpenAI](https://img.shields.io/badge/OpenAI-Python%20SDK%20v1+-412991?style=for-the-badge&logo=openai&logoColor=white)](https://platform.openai.com)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+An Arabic question-answering app for the document **«مشروع قواعد تعيين مسؤول حماية البيانات الشخصية»**. Ask about appointing a Personal Data Protection Officer (DPO), and the app returns an answer with a supporting excerpt and PDF page number.
 
-An intelligent Arabic **Retrieval-Augmented Generation (RAG)** assistant designed to answer compliance and regulatory inquiries strictly and exclusively from the Saudi Data & AI Authority (SDAIA) regulatory draft: **"مشروع قواعد تعيين مسؤول حماية البيانات الشخصية"** (Draft Rules for Appointing a Personal Data Protection Officer), providing exact 1-based PDF page numbers and supporting textual excerpts.
+This is a **Group 5 training project** built for the **Generative AI Solutions Development Program (تطوير حلول الذكاء الاصطناعي التوليدي)** at [SDAIA Academy](https://github.com/SDAIAAcademy). It is an educational prototype, not an official SDAIA service or a source of legal advice. The included document is the project's fixed knowledge source; the app does not check whether newer rules have been published.
 
----
+## What you can do
 
-## 👥 Project Team — Group 5
+- Ask questions in Arabic through a right-to-left chat interface.
+- See the PDF page and excerpt used to support an answer.
+- Try four suggested questions about DPO qualifications, required appointments, external contractors, and duties.
+- Inspect the API through FastAPI's interactive documentation.
 
-This project was designed, developed, and delivered by **Group 5**:
+The app searches **one included, 11-page PDF**. Questions outside that document's scope should receive an abstention response.
 
-- 🌟 **Majed Alsehli**
-- 🌟 **Abdullah Alotaibi**
-- 🌟 **Afnan Alharbi**
-- 🌟 **Leena Aljuwaysir**
-- 🌟 **Aljawharah Almutairi**
-- 🌟 **Raid Almousa**
+## How it works
 
----
-
-## 🎓 Academic & Training Acknowledgement
-
-> **"Developed as a training project within a SDAIA Academy training program: تطوير حلول الذكاء الاصطناعي التوليدي."**
->
-> This project was developed as an applied capstone assignment within the **Generative AI Solutions Development (تطوير حلول الذكاء الاصطناعي التوليدي)** bootcamp at [SDAIA Academy](https://github.com/SDAIAAcademy).
-
-> [!NOTE]
-> **Regulatory Disclaimer:**  
-> This system is built strictly for educational and training purposes. All answers are derived solely from the provided regulatory draft PDF (*"مشروع قواعد تعيين مسؤول حماية البيانات الشخصية"*). This project is **not an official product** of the Saudi Data & AI Authority (SDAIA), does not claim to reflect the latest officially enforced regulatory decrees, and should not be used as a substitute for professional legal counsel or official gazettes published by SDAIA.
-
----
-
-## 📌 Problem Statement & Project Scope
-
-### Problem:
-Compliance with the Saudi Personal Data Protection Law (PDPL) and its executive regulations requires precise legal interpretation of DPO appointment rules, large-scale processing thresholds, and operational responsibilities. Organizations face two core issues:
-1. **Manual Inefficiency:** Searching through legal texts and regulatory drafts is time-consuming and error-prone.
-2. **LLM Hallucinations:** Commercial general-purpose LLMs frequently hallucinate legal article numbers, mix jurisdictions, or invent non-existent royal decrees.
-
-### Scope & Objective:
-To engineer a lightweight, verifiable, zero-hallucination RAG chatbot with:
-- **Closed-Domain Grounding:** Answers are generated **exclusively** from the 11-page regulatory PDF.
-- **Verifiable Citations:** Every response is linked to actual 1-based PDF page numbers and verbatim excerpts.
-- **Strict Abstention:** The model explicitly states and apologizes when a query is outside the document's scope.
-- **Prompt Injection Defense:** Document passages are strictly treated as passive data, never as executable instructions.
-- **Lightweight Architecture:** No heavy external vector databases (e.g., Pinecone/Milvus); vector search is executed via native **NumPy cosine similarity**.
-
----
-
-## 🏗 System Architecture & Workflow
-
-```mermaid
-flowchart TD
-    subgraph Ingestion["1. Document Ingestion & Vector Caching"]
-        PDF["Regulatory PDF Document (11 Pages)"] --> PyMuPDF["PyMuPDF Text Extractor"]
-        PyMuPDF --> Norm["Arabic Normalization: NFKC + Tatweel Removal + Reversal Fix"]
-        Norm --> Filter["Exclude Covers, Basmala & TOC Pages"]
-        Filter --> Chunks["Page-Bounded Semantic Chunks (32 Chunks)"]
-        Chunks --> Embeddings["text-embedding-3-small (1536-dim)"]
-        Embeddings --> Cache[("Local Cache: embeddings_cache.json (SHA-256 Hash)")]
-    end
-
-    subgraph RAG_Engine["2. Runtime Retrieval & Grounded Generation"]
-        User["User / RTL Arabic Chat UI"] -->|Arabic Question| API["FastAPI /api/chat"]
-        API --> Q_Embed["Question Embedding (text-embedding-3-small)"]
-        Q_Embed --> Cosine["NumPy Cosine Similarity Calculation"]
-        Cache -.-> Cosine
-        Cosine --> TopK["Retrieve Top-4 Chunks"]
-        TopK --> Guard{"Relevance Threshold (Score >= 0.20)?"}
-        Guard -- "No" --> Abstain["Immediate Abstention: Out of Scope"]
-        Guard -- "Yes" --> Prompt["Strict Arabic System Prompt + Evidence Context"]
-        Prompt --> LLM["Generation Model: gpt-4o-mini (temp=0.1)"]
-        LLM --> CitationVal["Programmatic Citation Validation"]
-        CitationVal --> Response["Structured Response: Answer + Page Numbers + Excerpts"]
-    end
+```text
+PDF → Arabic text cleanup → page-based chunks → OpenAI embeddings
+                                                   ↓
+Question → OpenAI embedding → cosine-similarity search → relevant chunks
+                                                   ↓
+                                OpenAI answer + source excerpts and pages
 ```
 
----
+The backend uses **FastAPI**; the frontend is plain **HTML, CSS, and JavaScript**. PyMuPDF extracts the PDF text, NumPy ranks chunks by cosine similarity, and OpenAI supplies embeddings and answer generation. Document embeddings are cached in `data/embeddings_cache.json` and rebuilt when the PDF, chunking version, or embedding model changes. The cache is ignored by Git.
 
-## 🔬 Technical Highlights & Engineering Decisions
+## Run locally
 
-### 1. Robust Arabic PDF Processing:
-- **Extraction Tool Selection:** Compared `pypdf`, `pdfplumber`, and `PyMuPDF`. `PyMuPDF` was chosen because it reliably preserves natural Arabic word flow and paragraph structures without reversing entire lines.
-- **Unicode Normalization (NFKC):** Converts Arabic Presentation Forms-B characters (`\uFE97`, etc.) back to standard canonical Arabic Unicode code points (`U+0600 - U+06FF`).
-- **Tatweel / Kashida Stripping:** Cleans aesthetic elongation characters (`\u0640`, e.g., `مســــــؤول` → `مسؤول`) to ensure search terms match indexed tokens.
-- **Targeted Reversal Correction on Page 4:** Addresses visually encoded royal decree citations on Page 4 without blindly reversing unaffected pages.
-- **Page Filtering:** Excludes non-substantive pages (Cover Page 1, Basmala Page 2, Table of Contents Page 3, and Back Cover Page 11) while indexing substantive articles across **Pages 4 to 10**.
+You need Python 3.10+ and an OpenAI API key with API access. OpenAI usage may incur charges. Run these commands from the project folder.
 
-### 2. Page-Bound Semantic Chunking:
-- Chunks never cross PDF page boundaries, ensuring **100% accurate 1-based page number citations**.
-- Preserves legal article headers and logical numbered lists with ~80-character semantic overlaps.
-- Produced **32 high-coherence chunks** covering all articles from Article 1 to Article 11.
+**Windows PowerShell**
 
-### 3. Local Vector Caching & Invalidation:
-- Vector embeddings are cached locally in `data/embeddings_cache.json`.
-- Uses a composite SHA-256 hash for cache invalidation:
-  $$\text{Hash} = \text{SHA-256}(\text{PDF Binary Content} + \text{Chunking Version} + \text{Embedding Model Name})$$
-- Subsequent server restarts load cached vectors in **under 50 milliseconds** with zero redundant API calls.
-
-### 4. Cost-Effective, High-Performance Models:
-- **Chat Model:** `gpt-4o-mini` ($0.15/1M input tokens) — fast, highly fluent in Modern Standard Arabic, with strong reasoning capabilities.
-- **Embedding Model:** `text-embedding-3-small` ($0.02/1M tokens, 1536 dimensions) — optimal semantic retrieval at minimal cost.
-
----
-
-## 📊 Verification & Evaluation Matrix
-
-The system was evaluated against specific benchmark questions targeting key articles of the regulation:
-
-| # | Test Question | Target Article | Ground Truth Page | Evaluation Result |
-| :---: | :--- | :--- | :---: | :--- |
-| **1** | **ما متطلبات تعيين مسؤول حماية البيانات الشخصية؟**<br>*(What are the requirements for appointing a DPO?)* | Article 4, Clause 1 | **Page 5** | ✅ **Passed:** Accurately retrieves qualifications, risk management expertise, regulatory knowledge, and integrity requirements with Page 5 citation. |
-| **2** | **متى يجب تعيين مسؤول حماية البيانات الشخصية؟**<br>*(When is appointing a DPO mandatory?)* | Article 5, Clause 1 | **Page 6** | ✅ **Passed:** Correctly identifies the 3 mandatory circumstances (public entity with large-scale processing, core regular/systematic monitoring, sensitive data). |
-| **3** | **هل يمكن أن يكون المسؤول متعاقدًا خارجيًا؟**<br>*(Can the DPO be an external contractor?)* | Article 4, Clause 2 | **Page 5** | ✅ **Passed:** Confirms the legality of appointing an employee or external contractor with citation to Page 5. |
-| **4** | **ما مهام مسؤول حماية البيانات الشخصية؟**<br>*(What are the duties and responsibilities of the DPO?)* | Article 8 | **Pages 8–9** | ✅ **Passed:** Retrieves advisory, awareness, incident response plan review, and periodic reporting duties spanning Pages 8 and 9. |
-| **5** | **ما هي عاصمة فرنسا؟**<br>*(What is the capital of France? — Out of Domain)* | N/A (Irrelevant) | **None** | ✅ **Passed (Abstained):** Correctly refrains from answering and politely clarifies that the document does not contain this information. |
-| **6** | **Empty Question / Query > 500 characters** | Validation | — | ✅ **Passed:** Returns clean `400 Bad Request` with helpful Arabic error feedback. |
-| **7** | **Missing OpenAI Credentials** | Configuration | — | ✅ **Passed:** Returns clean `503 Service Unavailable` with guidance on configuring `.env`. |
-
----
-
-## 💻 Tech Stack
-
-- **Backend:** Python 3.10+, FastAPI, Uvicorn, Pydantic
-- **AI / Embeddings:** OpenAI Python SDK (`gpt-4o-mini`, `text-embedding-3-small`)
-- **Document Processing:** PyMuPDF (`fitz`), Unicodedata, Regular Expressions
-- **Vector Retrieval:** NumPy (Cosine Similarity)
-- **Frontend:** Responsive Vanilla HTML5, Modern CSS3 (RTL layout, dark theme), Vanilla JavaScript (Safe DOM rendering, XSS protection)
-
----
-
-## 🚀 Local Setup & Installation Guide
-
-### Prerequisites
-- Python `3.10` or higher.
-- An [OpenAI API Key](https://platform.openai.com/api-keys).
-
-### Step 1: Clone the Repository
 ```powershell
 git clone https://github.com/MajedAlsehli/dpo-assistant-rag.git
 cd dpo-assistant-rag
-```
-
-### Step 2: Set Up Virtual Environment & Dependencies
-```powershell
-# Create virtual environment
 python -m venv .venv
-
-# Activate virtual environment
-.\.venv\Scripts\Activate.ps1    # Windows PowerShell
-# source .venv/bin/activate      # Linux / macOS
-
-# Install required packages
-pip install -r requirements.txt
-```
-
-### Step 3: Configure Environment Variables
-Copy the template file to `.env`:
-```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Open `.env` in any text editor and supply your OpenAI API key:
-```env
-OPENAI_API_KEY=sk-proj-yourActualOpenAiKeyHere
-OPENAI_CHAT_MODEL=gpt-4o-mini
-OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-HOST=127.0.0.1
-PORT=8000
-API_TIMEOUT_SECONDS=30
-MAX_QUESTION_LENGTH=500
-```
+Open `.env` and replace `your_openai_api_key_here` with your own key. Keep the file private; `.gitignore` excludes it. The defaults in `.env.example` use `gpt-4o-mini` for answers and `text-embedding-3-small` for retrieval.
 
-> [!WARNING]
-> Never commit `.env` or expose API keys publicly. The `.env` file is strictly listed in `.gitignore`.
-
-### Step 4: Run the Application
-Launch the local Uvicorn development server:
 ```powershell
-.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-Once running, navigate to:
-- 🌐 **Web Chat Interface:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
-- 📖 **Interactive Swagger API Docs:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- 🩺 **Health Check Endpoint:** [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health)
+**macOS / Linux**
 
----
-
-## 📁 Repository Structure
-
-```
-dpo-assistant-rag/
-├── backend/
-│   ├── __init__.py
-│   ├── config.py              # Configuration manager & credential validator
-│   ├── ingest.py              # PDF extraction, normalization, chunking & cache
-│   ├── rag.py                 # Vector cosine similarity, grounded prompt, citation check
-│   └── main.py                # FastAPI endpoints, request validation & static server
-├── frontend/
-│   ├── index.html             # RTL Arabic interface with suggested questions
-│   ├── style.css              # Modern glassmorphism CSS & typography
-│   └── app.js                 # Async chat logic, status polling, and safe DOM renderer
-├── docs/
-│   ├── TECHNICAL.md           # In-depth architectural & preprocessing documentation
-│   └── EVALUATION.md          # Complete testing matrix, page mapping & edge cases
-├── data/
-│   └── مشروع+قواعد+تعيين+مسؤول+حماية+البيانات+الشخصية+2.pdf
-├── requirements.txt           # Python package dependencies
-├── .env.example               # Environment variables template
-├── .gitignore                 # Exclusion rules for secrets, venv, and cache
-└── README.md                  # Comprehensive English project documentation
+```bash
+git clone https://github.com/MajedAlsehli/dpo-assistant-rag.git
+cd dpo-assistant-rag
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env
+# Add your OpenAI API key to .env, then:
+.venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
----
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000). The first start creates document embeddings and can take longer than later starts. The status at the top of the page shows whether the document and API key are ready. If you edit `.env` while the server is running, restart the server.
 
-## 🔗 Project Links & Submission Details
+## Try it
 
-- **GitHub Repository:** [https://github.com/MajedAlsehli/dpo-assistant-rag](https://github.com/MajedAlsehli/dpo-assistant-rag)
-- **Delivered by:** Group 5
-- **SDAIA Academy Program:** تطوير حلول الذكاء الاصطناعي التوليدي (Generative AI Solutions Development)
-- **Organization:** [SDAIA Academy](https://github.com/SDAIAAcademy)
+Select a suggested question in the interface, or ask:
 
----
+> متى يجب تعيين مسؤول حماية البيانات الشخصية؟
 
-## ⚖️ License
+The answer should refer to the appointment circumstances in **PDF page 6**. You can also ask an unrelated question, such as `ما هي عاصمة فرنسا؟`, to check that the assistant declines questions outside the source document.
 
-Distributed under the **MIT License**. See `LICENSE` for more information.
+API endpoints:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /` | Arabic chat interface |
+| `GET /api/health` | Indexed chunk count and configuration status |
+| `POST /api/chat` | Answer a question; send `{"question":"..."}` |
+| `GET /docs` | Interactive API documentation |
+
+`POST /api/chat` returns an `answer`, a `sources` list with `chunk_id`, `page_number`, and `excerpt`, and a training disclaimer. The API rejects empty or overlong questions. It returns a configuration error when the OpenAI key is missing.
+
+## Project files
+
+| Path | Purpose |
+| --- | --- |
+| `backend/main.py` | API routes and frontend serving |
+| `backend/ingest.py` | PDF extraction, text cleanup, chunking, and embedding cache |
+| `backend/rag.py` | Retrieval, answer generation, and source selection |
+| `backend/config.py` | Paths, models, and environment settings |
+| `frontend/` | Arabic chat interface |
+| `data/` | Source PDF; generated embedding cache stays local |
+| `docs/TECHNICAL.md` | Implementation details |
+| `docs/EVALUATION.md` | Evaluation questions and expected pages |
+
+## Limits and data handling
+
+Answers depend on the extracted PDF text, retrieval results, and the language model. **Check the displayed excerpt against the PDF before relying on an answer.** The app checks that cited chunk IDs came from retrieved passages, but it cannot prove that every statement is supported. Its relevance threshold and instruction to abstain reduce off-topic answers; they do not guarantee perfect accuracy.
+
+Questions and retrieved excerpts are sent to OpenAI for processing. Do not enter confidential information in the chat. The OpenAI key remains in the local `.env` file and is not needed in the browser.
+
+## Team and acknowledgement
+
+**Group 5:** Majed Alsehli, Abdullah Alotaibi, Afnan Alharbi, Leena Aljuwaysir, Aljawharah Almutairi, and Raid Almousa.
+
+Developed as a training project within the **Generative AI Solutions Development Program** at [SDAIA Academy](https://github.com/SDAIAAcademy). The project is independently developed for learning and is not endorsed by SDAIA.
